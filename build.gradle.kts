@@ -35,3 +35,20 @@ dependencies {
     //add("commonMainApi", project(":korge-dragonbones"))
 }
 
+kotlin {
+    sourceSets {
+        commonMain {
+            dependencies {
+                // Common dependencies here
+            }
+        }
+        // Ensure proper source set hierarchy
+        val concurrentMain by getting {
+            dependsOn(commonMain.get())
+        }
+        val concurrentTest by getting {
+            dependsOn(commonTest.get())
+        }
+    }
+}
+
