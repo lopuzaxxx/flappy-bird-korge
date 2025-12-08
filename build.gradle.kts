@@ -1,40 +1,41 @@
 import korlibs.korge.gradle.*
 
 plugins {
-	alias(libs.plugins.korge)
+    alias(libs.plugins.korge)
 }
 
 korge {
-	id = "com.sample.demo"
+    id = "com.sample.demo"
 
 // To enable all targets at once
-
-	//targetAll()
+    //targetAll()
 
 // To enable targets based on properties/environment variables
-	//targetDefault()
+    //targetDefault()
 
 // To selectively enable targets
-	
-	targetJvm()
-	targetJs()
-    targetWasm()
-	targetDesktop()
-	targetIos()
-	targetAndroid()
 
-	serializationJson()
+    targetJvm()
+    targetJs()
+    targetWasm()
+    targetDesktop()
+    targetIos()
+    targetAndroid()
+
+    serializationJson()
 }
 
 
 dependencies {
     add("commonMainApi", project(":deps"))
-    add("commonMainApi", "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    add("commonMainApi", "org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+    add("commonMainApi", "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    add("commonMainApi", "org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
     add("jvmMainApi", "eu.timerertim.knevo:knevo:0.2.0-RC")
     //add("commonMainApi", project(":korge-dragonbones"))
 }
 
+// Remove the problematic source set configuration
+/*
 kotlin {
     sourceSets {
         commonMain {
@@ -51,4 +52,4 @@ kotlin {
         }
     }
 }
-
+*/
