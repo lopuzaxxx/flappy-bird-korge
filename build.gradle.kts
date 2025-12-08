@@ -17,8 +17,9 @@ korge {
 
     targetJvm()
     targetJs()
-    targetWasm()
-    targetDesktop()
+    targetWasmJs()
+    // Commented out deprecated targetDesktop() call
+    // targetDesktop()
     targetIos()
     targetAndroid()
 
@@ -34,22 +35,21 @@ dependencies {
     //add("commonMainApi", project(":korge-dragonbones"))
 }
 
-// Remove the problematic source set configuration
-/*
+// Configure source sets properly
 kotlin {
     sourceSets {
-        commonMain {
-            dependencies {
-                // Common dependencies here
-            }
-        }
-        // Ensure proper source set hierarchy
-        val concurrentMain by getting {
+        // Fix the problematic source sets without creating new ones
+        findByName("concurrentMain")?.apply {
             dependsOn(commonMain.get())
         }
-        val concurrentTest by getting {
+
+        findByName("concurrentTest")?.apply {
             dependsOn(commonTest.get())
+        }
+
+        // Ensure wasmJsMain exists and depends on commonMain
+        findByName("wasmJsMain")?.apply {
+            dependsOn(commonMain.get())
         }
     }
 }
-*/
