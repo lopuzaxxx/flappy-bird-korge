@@ -18,12 +18,8 @@ val gap = 100
 class TrainingBird(var brain: Network, val sprite: Sprite) {
     var velocity = 0.0
         set(value) {
-//            println("setting velocity: $velocity, time: ${Clock.System.now()}")
             field = value
         }
-
-//    var score: Double
-
 
     var fitness: Float = 0f
 
@@ -56,31 +52,6 @@ class TrainingBird(var brain: Network, val sprite: Sprite) {
             // Perform flap
             velocity = -150.0
         }
-    }
-
-//    fun think(pipes: List<View>) {
-//        val minX = pipes.minOfOrNull { it.x }
-//        val closestTopPipe = pipes.filter { it.x == minX }.minByOrNull { it.y }
-//
-//        val inputs = FloatArray(5)
-//        inputs[0] = (sprite.y / 512).toFloat()
-//        inputs[1] = (velocity / 150.0).toFloat()
-//        inputs[2] = ((closestTopPipe?.x ?: 512.0) / 512.0).toFloat()
-//        inputs[3] = ((closestTopPipe?.y ?: 512.0) / 512.0).toFloat()
-//        inputs[4] = (((closestTopPipe?.y ?: 0.0) + gap / 2) / 512.0).toFloat()
-//
-//        val output = brain.invoke(inputs)
-//
-//        println("flap output: ${output.get(0)}, inputs: ${inputs.joinToString(separator = ", ")}")
-//
-//        if (output[0] > 0.5) {
-//            //perform flap
-//            velocity = -150.0
-//        }
-//    }
-
-    fun mutate() {
-        brain.mutate()
     }
 
 }
@@ -191,8 +162,6 @@ class TrainingSceneJvm : Scene() {
             }
 
             scoreText.text = "Score: ${activeBirds.maxOfOrNull { it.fitness }}"
-
-//            scoreText.text = "Score: ${savedBirds.maxOfOrNull { it.fitness } ?: 0}"
             activeBirdsText.text = "Active Birds: ${activeBirds.size}"
         }
 
@@ -220,12 +189,6 @@ class TrainingSceneJvm : Scene() {
 
         activeBirds.addAll(savedBirds)
         savedBirds.clear()
-//        for (i in 0 until totalPopulation) {
-//            val bird = pickOne()
-//            bird.sprite = sprite(bluebirdAnimation).position(100, 256)
-//            activeBirds.add(bird)
-//        }
-//        savedBirds.clear()
 
         activeBirds.forEachIndexed { index, bird ->
             bird.sprite.x = 100.0
@@ -242,17 +205,4 @@ class TrainingSceneJvm : Scene() {
         pipes.clear()
     }
 
-//    private fun pickOne(): TrainingBird {
-//        var index = 0
-//        var r = Random.nextDouble()
-//        while (r > 0) {
-//            r -= savedBirds[index].score
-//            index++
-//        }
-//        index--
-//        val bird = savedBirds[index]
-//        val child = TrainingBird(bird.brain)
-//        child.mutate()
-//        return child
-//    }
 }
