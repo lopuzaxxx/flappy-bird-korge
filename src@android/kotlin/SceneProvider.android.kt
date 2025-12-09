@@ -1,5 +1,4 @@
-import korlibs.korge.scene.Scene
-import GameScene
+import korlibs.korge.scene.*
 
 actual fun provideScene(): Scene {
     return GameScene()
