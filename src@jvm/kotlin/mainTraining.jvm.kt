@@ -12,8 +12,7 @@ import korlibs.korge.view.*
 import korlibs.korge.view.collision.*
 import korlibs.time.*
 import kotlin.random.Random
-
-val gap = 100
+import kotlinx.coroutines.launch
 
 class TrainingBird(var brain: Network, val sprite: Sprite) {
     var velocity = 0.0
@@ -23,7 +22,7 @@ class TrainingBird(var brain: Network, val sprite: Sprite) {
 
     var fitness: Float = 0f
 
-    fun think(pipes: List<View>) {
+    fun think(pipes: List<View>, gap: Int) {
         // Find the closest pipe in front of the bird
         val closestPipe = pipes.filter { it.x + it.width > sprite.x }.minByOrNull { it.x }
 
@@ -36,7 +35,8 @@ class TrainingBird(var brain: Network, val sprite: Sprite) {
 
         // 1. Vertical distance to the middle of the pipe opening
         val pipeCenterY = pipeY + (gap / 2.0)
-        inputs[0] = ((sprite.y - pipeCenterY) / 256.0).toFloat() // Normalized by half the screen height (256.0)
+        inputs[0] =
+            ((sprite.y - pipeCenterY) / 256.0).toFloat() // Normalized by half the screen height (256.0)
 
         // 2. Horizontal distance to the pipe
         inputs[1] = ((pipeX - sprite.x) / 512.0).toFloat() // Normalized by screen width
@@ -56,21 +56,18 @@ class TrainingBird(var brain: Network, val sprite: Sprite) {
 
 }
 
-class TrainingSceneJvm : Scene() {
+class TrainingSceneJvm : BaseFlappyBirdScene() {
 
     private var activeBirds = mutableListOf<TrainingBird>()
     private var savedBirds = mutableListOf<TrainingBird>()
-    private var pipes = mutableListOf<View>()
     private val populationSize = 100
+    private var visualScore = 0
+    private val passedPipes = mutableSetOf<View>()
 
     private lateinit var scoreText: Text
     private lateinit var generationText: Text
     private lateinit var activeBirdsText: Text
-    private lateinit var bluebirdAnimation: SpriteAnimation
-    private lateinit var pipeImage: Bitmap
-    private lateinit var hitSound: Sound
-    private lateinit var pointSound: Sound
-    private val gravity = 1000.0
+    private lateinit var visualScoreText: Text
 
     val environment = object : Environment<Network> {
 
@@ -97,29 +94,23 @@ class TrainingSceneJvm : Scene() {
     override suspend fun SContainer.sceneMain() {
         setBackground()
 
-        val bluebirdSpriteMap = resourcesVfs["bluebird.png"].readBitmap()
-        bluebirdAnimation = SpriteAnimation(
-            spriteMap = bluebirdSpriteMap,
-            spriteWidth = 34,
-            spriteHeight = 24,
-            columns = 4,
-            rows = 1
-        )
+        // Initialize shared resources from base class
+        initResources()
 
-        pipeImage = resourcesVfs["pipe-green.png"].readBitmap()
-        hitSound = resourcesVfs["hit.wav"].readSound()
-        pointSound = resourcesVfs["point.wav"].readSound()
+        // Initialize ground
+        initGround()
 
-        scoreText = text("Score: 0").xy(10, 10)
+        scoreText = text("Fitness: 0").xy(10, 10)
         generationText = text("Generation: 1").xy(10, 30)
         activeBirdsText = text("Active Birds: ${activeBirds.size}").xy(10, 50)
+        visualScoreText = text("Score: 0").xy(10, 70)
 
         pool.evolve(environment)
 
         for (i in 0 until populationSize) {
             val bird = TrainingBird(
                 instinctInstance.Network(),
-                sprite(bluebirdAnimation).position(100, 256)
+                sprite(bluebirdAnimation).position(birdStartX, birdStartY)
             )
             activeBirds.add(bird)
         }
@@ -129,8 +120,26 @@ class TrainingSceneJvm : Scene() {
                 nextGeneration()
             }
 
-            pipes.forEach { it.x -= 2.0 }
-            pipes.removeAll { it.x < -64 }
+            // Use base class function to update pipes
+            updatePipes()
+
+            // Check for passed pipes and update visual score
+            if (activeBirds.isNotEmpty()) {
+                val bestBird = activeBirds.first() // Use the first bird to track pipe passing
+                for (i in pipes.indices step 2) {
+                    val topPipe = pipes[i]
+                    if (topPipe.x + topPipe.width < bestBird.sprite.x && !passedPipes.contains(
+                            topPipe
+                        )
+                    ) {
+                        launch { pointSound.play() }
+                        visualScore++
+                        visualScoreText.text = "Score: $visualScore"
+                        passedPipes.add(topPipe)
+                    }
+                }
+                passedPipes.removeAll { it.x < -64 }
+            }
 
             for (bird in activeBirds.toList()) {
                 bird.fitness += 1f
@@ -146,14 +155,10 @@ class TrainingSceneJvm : Scene() {
                     bird.sprite.y = 0.0
                 }
 
-                bird.think(pipes)
+                bird.think(pipes, gap)
 
-                var collision = false
-                for (pipe in pipes) {
-                    if (bird.sprite.collidesWith(pipe)) {
-                        collision = true
-                    }
-                }
+                // Use base class function to check collision
+                val collision = checkPipeCollision(bird.sprite)
                 if (collision || bird.sprite.y >= 375) {
                     activeBirds.remove(bird)
                     savedBirds.add(bird)
@@ -161,29 +166,29 @@ class TrainingSceneJvm : Scene() {
                 }
             }
 
-            scoreText.text = "Score: ${activeBirds.maxOfOrNull { it.fitness }}"
+            scoreText.text = "Fitness: ${activeBirds.maxOfOrNull { it.fitness }}"
             activeBirdsText.text = "Active Birds: ${activeBirds.size}"
+
+            // Keep the ground on top
+            bringGroundToTop()
+            scoreText.bringToTop()
+            generationText.bringToTop()
+            activeBirdsText.bringToTop()
+            visualScoreText.bringToTop()
         }
 
-        addFixedUpdater(time = 1.0.seconds) {
-            val middle = Random.nextDouble(175.0, 295.0)
-            val topPipe = image(pipeImage) {
-                scaleY = -1.0
-                anchor(0.5, 0.0)
-                position(512, middle - gap / 2)
-            }
-            val bottomPipe = image(pipeImage) {
-                anchor(0.5, 0.0)
-                position(512, middle + gap / 2)
-            }
-            pipes.add(topPipe)
-            pipes.add(bottomPipe)
+        // Use base class pipe spawner function
+        setupPipeSpawner { middle ->
+            createPipePair(512.0, middle)
         }
     }
 
     private fun Container.nextGeneration() {
         generationText.text = "Generation: ${pool.generation}"
-        scoreText.text = "Score: 0"
+        scoreText.text = "Fitness: 0"
+        visualScore = 0
+        visualScoreText.text = "Score: 0"
+        passedPipes.clear()
 
         pool.evolve(environment)
 
@@ -191,8 +196,8 @@ class TrainingSceneJvm : Scene() {
         savedBirds.clear()
 
         activeBirds.forEachIndexed { index, bird ->
-            bird.sprite.x = 100.0
-            bird.sprite.y = 256.0
+            bird.sprite.x = birdStartX
+            bird.sprite.y = birdStartY
             bird.fitness = 0f
             bird.brain = pool.get(index)
             addChild(bird.sprite)

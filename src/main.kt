@@ -18,7 +18,7 @@ suspend fun main() = Korge(windowSize = Size(512, 512), backgroundColor = Colors
     sceneContainer.changeTo { provideScene() }
 }
 
-class GameScene : Scene() {
+class GameScene : BaseFlappyBirdScene() {
     enum class GameState {
         Ready, Running, GameOver
     }
@@ -27,54 +27,38 @@ class GameScene : Scene() {
         var gameState = GameState.Ready
         setBackground()
 
-        val bluebirdSpriteMap = resourcesVfs["bluebird.png"].readBitmap()
+        // Initialize shared resources
+        initResources()
 
-        val bluebirdAnimation = SpriteAnimation(
-            spriteMap = bluebirdSpriteMap,
-            spriteWidth = 34,
-            spriteHeight = 24,
-            columns = 4,
-            rows = 1
-        )
+        // Additional game-specific resources
+        val flapSound = resourcesVfs["wing.wav"].readSound()
+        val gameOverImage = resourcesVfs["gameover.png"].readBitmap()
+        val messageImage = resourcesVfs["message.png"].readBitmap()
+
+        // Initialize ground
+        initGround()
 
         val bird = sprite(bluebirdAnimation) {
-            position(100, 256)
+            position(birdStartX, birdStartY)
         }
 
         bird.playAnimationLooped(spriteDisplayTime = 100.milliseconds)
 
         var velocity = 0.0
-        val gravity = 1000.0
-
-        val hitSound = resourcesVfs["hit.wav"].readSound()
-        val flapSound = resourcesVfs["wing.wav"].readSound()
-        val pointSound = resourcesVfs["point.wav"].readSound()
 
         var score = 0
         val scoreText = text("Score: $score") {
             position(10, 10)
         }
 
-        val pipes = mutableListOf<View>()
         val passedPipes = mutableSetOf<View>()
 
-        val pipeImage = resourcesVfs["pipe-green.png"].readBitmap()
-        val baseImage = resourcesVfs["base.png"].readBitmap()
-        val base1 = image(baseImage) {
-            position(0, 400)
-        }
-        val base2 = image(baseImage) {
-            position(288, 400)
-        }
-
-        val gameOverImage = resourcesVfs["gameover.png"].readBitmap()
         val gameOverView = image(gameOverImage) {
             anchor(0.5, 0.5)
             position(256, 256)
             visible = false
         }
 
-        val messageImage = resourcesVfs["message.png"].readBitmap()
         val messageView = image(messageImage) {
             anchor(0.5, 0.5)
             position(256, 256)
@@ -103,10 +87,12 @@ class GameScene : Scene() {
                                 velocity = -250.0
                                 launch { flapSound.play() }
                             }
+
                             GameState.Running -> {
                                 velocity = -250.0
                                 launch { flapSound.play() }
                             }
+
                             GameState.GameOver -> {
                                 launch {
                                     sceneContainer.changeTo { GameScene() }
@@ -127,10 +113,12 @@ class GameScene : Scene() {
                         velocity = -250.0
                         launch { flapSound.play() }
                     }
+
                     GameState.Running -> {
                         velocity = -250.0
                         launch { flapSound.play() }
                     }
+
                     GameState.GameOver -> {
                         launch {
                             sceneContainer.changeTo { GameScene() }
@@ -156,21 +144,10 @@ class GameScene : Scene() {
             }
         }
 
-        addFixedUpdater(time = 1.0.seconds) {
+        // Set up pipe spawner using the common pipe spawner function
+        setupPipeSpawner { middle ->
             if (gameState == GameState.Running) {
-                val gap = 100
-                val middle = Random.nextDouble(175.0, 295.0)
-                val topPipe = image(pipeImage) {
-                    scaleY = -1.0
-                    anchor(0.5, 0.0)
-                    position(512, middle - gap / 2)
-                }
-                val bottomPipe = image(pipeImage) {
-                    anchor(0.5, 0.0)
-                    position(512, middle + gap / 2)
-                }
-                pipes.add(topPipe)
-                pipes.add(bottomPipe)
+                createPipePair(512.0, middle)
             }
         }
 
@@ -179,17 +156,16 @@ class GameScene : Scene() {
                 if (isAiPlaying) {
                     val nextPipe = pipes.firstOrNull { it.x + it.width > bird.x }
                     if (nextPipe != null) {
-                        val gap = 150
-                        val pipeCenter = nextPipe.y + gap / 2
+                        val aiGap = 150
+                        val pipeCenter = nextPipe.y + aiGap / 2
                         if (bird.y > pipeCenter) {
                             velocity = -250.0
                         }
                     }
                 }
 
-                pipes.forEach { pipe ->
-                    pipe.x -= 2.0
-                }
+                // Update pipes using common function
+                updatePipes()
 
                 for (i in pipes.indices step 2) {
                     val topPipe = pipes[i]
@@ -201,23 +177,20 @@ class GameScene : Scene() {
                     }
                 }
 
-                pipes.removeAll { it.x < -64 }
                 passedPipes.removeAll { it.x < -64 }
 
-                base1.bringToTop()
-                base2.bringToTop()
+                bringGroundToTop()
                 scoreText.bringToTop()
 
-                for (pipe in pipes) {
-                    if (bird.collidesWith(pipe)) {
-                        launch {
-                            hitSound.play()
-                        }
-
-                        gameState = GameState.GameOver
-                        gameOverView.visible = true
-                        gameOverView.bringToTop()
+                // Check collision using common function
+                if (checkPipeCollision(bird)) {
+                    launch {
+                        hitSound.play()
                     }
+
+                    gameState = GameState.GameOver
+                    gameOverView.visible = true
+                    gameOverView.bringToTop()
                 }
             }
         }
